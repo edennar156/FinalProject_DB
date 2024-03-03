@@ -62,31 +62,14 @@ class DBManager:
         self.game_collection = self.db["games"]
 
     def load_csv(self) -> None:
-        # Define file path and collection name
-        filename = "NintendoGames.csv"
-        collection_name = "games"
+        data = pd.read_csv("NintendoGames.csv")
+        for index, row in data.iterrows():
+            row["genres"] = ast.literal_eval(row["genres"])
+            row['is_rented'] = False
 
-        # Open CSV file and create cursor
-        with open(filename, "r") as csvfile:
-            reader = csv.DictReader(csvfile)
-
-            # Prepare data for insertion
-            data_to_insert = []
-            for row in reader:
-                try:
-                    row["genres"] = ast.literal_eval(row["genres"])
-                except (ValueError, SyntaxError) as e:
-                    print(f"Error parsing 'genres' field for row: {row} (Skipping)")
-                    continue
-                row["is_rented"] = False
-                data_to_insert.append(row)
-
-            # Insert data into collection with duplicate prevention
-            try:
-                self.game_collection.insert_many(data_to_insert, ordered=False)
-                print(f"Data loaded from {filename} into {collection_name} collection.")
-            except BulkWriteError as e:
-                print(f"Error encountered during data insertion: {e}")
+            # Insert the record into the games collection if it doesn't already exist
+            if not self.game_collection.find_one({'title': row['title']}):
+                self.game_collection.insert_one(row.to_dict())
 
     def recommend_games_by_genre(self, user: dict) -> str:
         # TODO
